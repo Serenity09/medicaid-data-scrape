@@ -10,7 +10,7 @@ const medicaidTableURL = 'https://www.medicaid.gov/medicaid/national-medicaid-ch
 type TableHTML = {
   parsedString: string;
   parsedPercent: number | null;
-  superScript: string | null;
+  footnoteID: string | null;
 }
 
 type TableHeaderHTML = TableHTML & {
@@ -39,12 +39,12 @@ const parseTableHTML = function(str: string): TableHTML {
   }
   catch (err) { console.log(err) }
   
-  let superScript = null;
+  let footnoteID = null;
   try {
-    const superScriptStartIndex = str.search(/>[0-9]+</);
-    if (superScriptStartIndex >= 0) {
-      const superScriptEndIndex = str.indexOf("<", superScriptStartIndex);
-      superScript = str.substring(superScriptStartIndex + 1, superScriptEndIndex);
+    const footnoteStartIndex = str.search(/>[0-9]+</);
+    if (footnoteStartIndex >= 0) {
+      const footnoteEndIndex = str.indexOf("<", footnoteStartIndex);
+      footnoteID = str.substring(footnoteStartIndex + 1, footnoteEndIndex);
     }
   }
   catch (err) { console.log(err) }
@@ -52,7 +52,7 @@ const parseTableHTML = function(str: string): TableHTML {
   return {
     parsedString,
     parsedPercent,
-    superScript
+    footnoteID
   }
 }
 const parseTableHeaderHTML = function(str: string): TableHeaderHTML {
