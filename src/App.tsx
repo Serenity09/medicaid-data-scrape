@@ -7,7 +7,20 @@ const deferred = require('deferred');
 
 const medicaidTableURL = 'https://www.medicaid.gov/medicaid/national-medicaid-chip-program-information/medicaid-childrens-health-insurance-program-basic-health-program-eligibility-levels/index.html';
 
-const parseTableHTML = function(str: string) {
+type TableHTML = {
+  parsedString: string;
+  parsedPercent: number | null;
+  superScript: string | null;
+}
+
+type TableHeaderHTML = TableHTML & {
+  ageLowerBound: number;
+  ageUpperBound: number | null;
+  appliesToIndividuals: boolean;
+  appliesWhenPregnant: boolean;
+}
+
+const parseTableHTML = function(str: string): TableHTML {
   let parsedString = str;
   try {
     const innerTagIndex = str.indexOf("<");
@@ -42,15 +55,67 @@ const parseTableHTML = function(str: string) {
     superScript
   }
 }
+const parseTableHeaderHTML = function(str: string): TableHeaderHTML {
+  const parsedHTML = parseTableHTML(str) as TableHeaderHTML;
+
+  let parsedAgeLowerBound: number = 19;
+  let parsedAgeUpperBound: number | null = null;
+  try {
+    if (str.indexOf("Children") >= 0) {
+      const ageHypenIndex = str.indexOf("-", str.indexOf("Ages"));
+      
+      if (ageHypenIndex >= 0) {
+        let ageLowerBoundIndex = ageHypenIndex - 1;
+        while (str.charAt(ageLowerBoundIndex) != " ") {
+          ageLowerBoundIndex--;
+        }
+        parsedAgeLowerBound = parseInt(str.substring(ageLowerBoundIndex, ageHypenIndex));
+
+        let ageUpperBoundIndex = ageHypenIndex + 1;
+        while (str.charAt(ageUpperBoundIndex) != "<") {
+          ageUpperBoundIndex++;
+        }
+        parsedAgeUpperBound = parseInt(str.substring(ageHypenIndex + 1, ageUpperBoundIndex));
+      }
+      else if (str.indexOf("CHIP") >= 0) {
+        parsedAgeLowerBound = 0;
+        parsedAgeUpperBound = 19;
+      }
+    }
+  }
+  catch (err) { console.log(err) }
+
+  parsedHTML.ageLowerBound = parsedAgeLowerBound;
+  parsedHTML.ageUpperBound = parsedAgeUpperBound;
+
+  let parsedAppliesToIndividuals: boolean = true;
+  let parsedAppliesWhenPregnant: boolean = false;
+  try {
+    if (str.indexOf("Parent") >= 0 || str.indexOf("Caretaker") >= 0) {
+      parsedAppliesToIndividuals = false;
+      parsedAppliesWhenPregnant = true;
+    }
+    else if (str.indexOf("Pregnant") >= 0) {
+      parsedAppliesWhenPregnant = true;
+    }
+  }
+  catch (err) { console.log(err) }
+
+  parsedHTML.appliesToIndividuals = parsedAppliesToIndividuals;
+  parsedHTML.appliesWhenPregnant = parsedAppliesWhenPregnant;
+
+  return parsedHTML;
+}
+
 const parseMedicaidTableToJson = function(medicaidTable: HTMLElement) {
-  let columnNames = null;
+  let columnNames: TableHeaderHTML[] | null = null;
   try {
     const headerRow = medicaidTable.childNodes[0];
-    columnNames = headerRow.childNodes.filter((headerEle) => headerEle.nodeType === 1).map((headerEle: any) => parseTableHTML(headerEle.innerHTML));
+    columnNames = headerRow.childNodes.filter((headerEle) => headerEle.nodeType === 1).map((headerEle: any) => parseTableHeaderHTML(headerEle.innerHTML));
   }
   catch (err) { console.log(err); }
 
-  let data = [];
+  let data: TableHTML[][] = [];
   try {
     const [, ...dataRows] = medicaidTable.childNodes;
 
