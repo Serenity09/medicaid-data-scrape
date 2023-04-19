@@ -108,10 +108,10 @@ const parseTableHeaderHTML = function(str: string): TableHeaderHTML {
 }
 
 const parseMedicaidTableToJson = function(medicaidTable: HTMLElement) {
-  let columnNames: TableHeaderHTML[] | null = null;
+  let columns: TableHeaderHTML[] | null = null;
   try {
     const headerRow = medicaidTable.childNodes[0];
-    columnNames = headerRow.childNodes.filter((headerEle) => headerEle.nodeType === 1).map((headerEle: any) => parseTableHeaderHTML(headerEle.innerHTML));
+    columns = headerRow.childNodes.filter((headerEle) => headerEle.nodeType === 1).map((headerEle: any) => parseTableHeaderHTML(headerEle.innerHTML));
   }
   catch (err) { console.log(err); }
 
@@ -126,7 +126,7 @@ const parseMedicaidTableToJson = function(medicaidTable: HTMLElement) {
   catch (err) { console.log(err); }
 
   return {
-    columnNames,
+    columns,
     data
   };
 }
@@ -147,22 +147,23 @@ axios.get(medicaidTableURL)
     const root = parse(response.data);
 
     const medicaidTable = root.querySelector("#block-medicaid-content")?.querySelector("table");
-    let medicaidTableJson = {};
+    let table = {};
 
     const medicaidTableBody = medicaidTable?.querySelector("tbody");
     if (medicaidTableBody) {
-      medicaidTableJson = parseMedicaidTableToJson(medicaidTableBody);
+      table = parseMedicaidTableToJson(medicaidTableBody);
     }
 
-    let footnotesJson = [];
-    const footnotes = medicaidTable?.nextElementSibling;
-    if (footnotes) {
-      footnotesJson = parseFootnoteListToJson(footnotes);
+    let footnotes = [];
+    const footnotesHTML = medicaidTable?.nextElementSibling;
+    if (footnotesHTML) {
+      footnotes = parseFootnoteListToJson(footnotesHTML);
     }
 
     medicaidTableRequest.resolve({
-      medicaidTableJson,
-      footnotesJson
+      table,
+      footnotes,
+      scrapedOn: new Date()
     })
   })
   .catch((error: any) => {
